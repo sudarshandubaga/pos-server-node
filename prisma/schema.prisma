@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id         String    @id @default(uuid()) @db.Char(36)
+  name       String    @db.VarChar(255)
+  login_name String    @unique(map: "pos_admins_login_name_unique") @db.VarChar(255)
+  password   String    @db.VarChar(255)
+  createdAt  DateTime? @map("created_at") @db.Timestamp(0)
+  updatedAt  DateTime? @map("updated_at") @db.Timestamp(0)
+
+  @@map("pos_admins")
+}
+
+model Category {
+  id            String     @id @default(uuid()) @db.Char(36)
+  name          String     @unique(map: "pos_categories_name_unique") @db.VarChar(255)
+  parent_id     String?    @db.Char(36)
+  createdAt     DateTime?  @map("created_at") @db.Timestamp(0)
+  updatedAt     DateTime?  @map("updated_at") @db.Timestamp(0)
+  parent        Category?  @relation("pos_categoriesTopos_categories", fields: [parent_id], references: [id], onUpdate: Restrict, map: "pos_categories_parent_id_foreign")
+  subcategories Category[] @relation("pos_categoriesTopos_categories")
+
+  @@index([parent_id], map: "pos_categories_parent_id_foreign")
+  @@map("pos_categories")
+}
+
+model PricingPlan {
+  id            String    @id @default(uuid()) @db.Char(36)
+  name          String    @unique(map: "pos_pricing_plans_name_unique") @db.VarChar(255)
+  price         Decimal   @db.Decimal(10, 2)
+  description   String?   @db.LongText
+  duration      Int       @default(12)
+  isRecommended Boolean   @default(false) @map("is_recommended")
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime? @map("created_at") @db.Timestamp(0)
+  updatedAt     DateTime? @map("updated_at") @db.Timestamp(0)
+
+  @@map("pos_pricing_plans")
+}
