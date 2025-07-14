@@ -1,158 +1,86 @@
-const { PrismaClient } = require("../../generated/prisma");
-const prisma = new PrismaClient();
+const Crud = require("../utils/crud.util");
+const { v4: uuidv4 } = require("uuid");
 
-const create = async (req, res) => {
-  try {
-    // Check if a category with the same name already exists
-    const existingCategory = await prisma.category.findUnique({
-      where: { name: req.body.name },
-    });
-    if (existingCategory) {
-      return res.status(400).send({
-        message: "Category name have been already exists",
-      });
-    }
-
-    await prisma.category.create({
-      data: {
-        name: req.body.name,
-        parent_id: req.body.parent_id || null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
-
-    res.send({
-      message: "Category created successfully",
-    });
-  } catch (error) {
-    console.error("Error creating category:", error);
-    return res.status(500).send({
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-};
-
-const read = async (req, res) => {
-  try {
-    let records = await prisma.category.findMany({
-      orderBy: {
-        createdAt: "desc",
-      },
-      include: {
-        parent: true,
-        subcategories: true,
-      },
-    });
-
-    res.send(records);
-  } catch (error) {
-    console.error("Error reading categories:", error);
-    return res.status(500).send({
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-};
-
-const details = async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    await prisma.category
-      .findUnique({
-        where: {
-          id,
-        },
-        include: {
-          parent: true,
-          subcategories: true,
-        },
-      })
-      .then((record) => {
-        if (!record) {
-          return res.status(404).send({
-            message: "Category not found",
-          });
-        }
-        res.send(record);
-      });
-  } catch (error) {
-    console.error("Error reading category details:", error);
-    return res.status(500).send({
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-};
-
-const update = async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const existingCategory = await prisma.category.findUnique({
-      where: { id },
-    });
-    if (!existingCategory) {
-      return res.status(404).send({ message: "Category not found" });
-    }
-
-    const updatedCategory = await prisma.category.update({
-      where: { id },
-      data: {
-        name: req.body.name,
-        parent_id: req.body.parent_id || null,
-        updatedAt: new Date(),
-      },
-    });
-
-    res.send({
-      message: "Category updated successfully",
-      category: updatedCategory,
-    });
-  } catch (error) {
-    console.error("Error updating category:", error);
-    return res.status(500).send({
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-};
-
-const destroy = async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const existingCategory = await prisma.category.findUnique({
-      where: { id },
-    });
-    if (!existingCategory) {
-      return res.status(404).send({ message: "Category not found" });
-    }
-
-    await prisma.category.delete({
-      where: { id },
-    });
-
-    res.send({
-      message: "Category deleted successfully",
-    });
-  } catch (error) {
-    console.error("Error deleting category:", error);
-    return res.status(500).send({
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-};
+const TABLE = "pos_categories";
 
 const CategoryController = {
-  create,
-  read,
-  details,
-  update,
-  destroy,
+  async create(req, res) {
+    try {
+      const existing = await Crud.findByField(TABLE, "name", req.body.name);
+      if (existing) {
+        return res
+          .status(400)
+          .json({ message: "Category name already exists" });
+      }
+
+      await Crud.create(TABLE, {
+        id: uuidv4(),
+        name: req.body.name,
+        parent_id: req.body.parent_id || null,
+        created_at: new Date(),
+        updated_at: new Date(),
+      });
+
+      res.json({ message: "Category created successfully" });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async read(req, res) {
+    try {
+      const categories = await Crud.findAll(TABLE, {
+        orderBy: { field: "created_at", dir: "DESC" },
+      });
+      res.json(categories);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async details(req, res) {
+    try {
+      const category = await Crud.findById(TABLE, req.params.id);
+      if (!category) return res.status(404).json({ message: "Not found" });
+      res.json(category);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async update(req, res) {
+    try {
+      const category = await Crud.findById(TABLE, req.params.id);
+      if (!category) return res.status(404).json({ message: "Not found" });
+
+      await Crud.update(TABLE, req.params.id, {
+        name: req.body.name,
+        parent_id: req.body.parent_id || null,
+        updated_at: new Date(),
+      });
+
+      res.json({ message: "Category updated successfully" });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
+
+  async destroy(req, res) {
+    try {
+      const category = await Crud.findById(TABLE, req.params.id);
+      if (!category) return res.status(404).json({ message: "Not found" });
+
+      await Crud.destroy(TABLE, req.params.id);
+      res.json({ message: "Category deleted successfully" });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  },
 };
 
 module.exports = CategoryController;
